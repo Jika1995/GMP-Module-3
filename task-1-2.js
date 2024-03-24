@@ -1,3 +1,5 @@
+// TASK-1
+
 class MyEventEmitter {
   constructor() {
     this.listeners = {};
@@ -44,12 +46,14 @@ class MyEventEmitter {
     this.on(eventName, wrappedListenerFunc);
   };
 
-  emit(eventName, data) {
+  emit(eventName, ...args) {
     if (!this.listeners[eventName]) {
       throw new Error(`Can't emit a listener. Event "${eventName}" doesn't exists`);
-    };
+    }
 
-    this.listeners[eventName].forEach(func => func.call(null, data)); //this это null, чтобы не падал объект(класс)
+    this.listeners[eventName].forEach(func => {
+      func(...args);
+    });
   };
 
   listenerCount(eventName) {
@@ -61,21 +65,7 @@ class MyEventEmitter {
   rawListeners(eventName) {
     return this.listeners[eventName];
   };
-
-  emit(name, data) {
-    if (!this.listeners[name]) {
-      throw new Error(`Can't emit a listener. Event "${name}" doesn't exists`);
-    }
-
-    // const fireCallbacks = (callback) => {
-    //   callback(data);
-    // };
-
-    this.listeners[name].forEach(func => {
-      func(data);
-    });
-  }
-}
+};
 
 const myEmitter = new MyEventEmitter();
 
@@ -125,4 +115,40 @@ console.log(myEmitter.listenerCount('eventOne'));
 myEmitter.off('eventOne', c2);
 console.log(myEmitter.listenerCount('eventOne'));
 
+//TASK-2 
 
+class WithTime extends MyEventEmitter {
+  execute(asyncFunc, ...args) {
+
+    this.emit('begin');
+    console.time('execute');
+    this.on('data', (data) => console.log('got data', data));
+
+    asyncFunc(...args, (err, data) => {
+      if (err) {
+        return this.emit('error', err);
+      };
+
+      this.emit('data', data);
+      console.timeEnd('execute');
+      this.emit('end');
+    });
+  };
+};
+
+const fetchFromUrl = (url, cb) => {
+  fetch(url)
+    .then((res) => res.json()) //transform data to json
+    .then(function (data) {
+      cb(null, data);
+    });
+};
+
+const withTime = new WithTime();
+
+withTime.on('begin', () => console.log('About to execute'));
+withTime.on('end', () => console.log('Done with execute'));
+
+withTime.execute(fetchFromUrl, 'https://jsonplaceholder.typicode.com/posts/1');
+
+console.log(withTime.rawListeners('end'));
